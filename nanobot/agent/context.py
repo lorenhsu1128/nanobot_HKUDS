@@ -26,19 +26,42 @@ class PromptLoader:
         current_lines = []
 
         import re
-        # Match lines strictly like # ===[Title]===
-        title_pattern = re.compile(r"^# ===\[(.+?)\]===$")
+        # Match lines strictly like # ===[Title START]===
+        start_pattern = re.compile(r"^# ===\[(.+?) START\]===$")
+        # Match lines strictly like # ===[Title END]===
+        end_pattern = re.compile(r"^# ===\[(.+?) END\]===$")
 
         for line in content.splitlines():
-            match = title_pattern.match(line.strip())
-            if match:
+            stripped = line.strip()
+            
+            # Check for start block
+            start_match = start_pattern.match(stripped)
+            if start_match:
+                # If we were already in a block, save it (implicit closing) or warn
+                # But strict logic says we should close previous block first.
+                # For robustness, let's auto-close previous if start new.
                 if current_title:
                     prompts[current_title] = "\n".join(current_lines).strip()
-                current_title = match.group(1).strip()
+                
+                current_title = start_match.group(1).strip()
                 current_lines = []
-            else:
+                continue
+            
+            # Check for end block
+            end_match = end_pattern.match(stripped)
+            if end_match:
+                title = end_match.group(1).strip()
+                if current_title == title:
+                    prompts[current_title] = "\n".join(current_lines).strip()
+                    current_title = None
+                    current_lines = []
+                continue
+            
+            # Accumulate content if inside a block
+            if current_title:
                 current_lines.append(line)
         
+        # Handle case where file ends without explicit END tag
         if current_title:
             prompts[current_title] = "\n".join(current_lines).strip()
             
@@ -68,8 +91,9 @@ class ContextBuilder:
         self.skills = SkillsLoader(workspace)
         
         # Load centralized prompts
-        # Assuming CONTEXT.md is in the same directory as this file
-        context_md_path = Path(__file__).parent / "CONTEXT.md"
+        # Load centralized prompts from CONTEXT.md (now in nanobot root)
+        # context.py is in nanobot/agent/, so we need nanobot/CONTEXT.md
+        context_md_path = Path(__file__).parent.parent / "CONTEXT.md"
         self.prompts = PromptLoader(context_md_path)
     
     def build_system_prompt(self, skill_names: list[str] | None = None) -> str:

@@ -315,6 +315,43 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         model_overrides=(),
     ),
 
+
+    # Ollama: typically runs on http://localhost:11434
+    ProviderSpec(
+        name="ollama",
+        keywords=("ollama",),
+        env_key="OLLAMA_API_BASE",  # To override base URL
+        display_name="Ollama",
+        litellm_prefix="ollama_chat", # Use chat endpoint by default for better compatibility
+        skip_prefixes=("ollama/",),
+        env_extras=(),
+        is_gateway=False,
+        is_local=True,
+        detect_by_key_prefix="",
+        detect_by_base_keyword="",
+        default_api_base="http://localhost:11434",
+        strip_model_prefix=False,
+        model_overrides=(),
+    ),
+
+    # Llama.cpp Server: OpenAI compatible, usually on http://localhost:8080/v1
+    ProviderSpec(
+        name="llamacpp",
+        keywords=("llamacpp",),
+        env_key="LLAMACPP_API_KEY", # Usually empty
+        display_name="Llama.cpp",
+        litellm_prefix="openai",    # Use openai client
+        skip_prefixes=("openai/",),
+        env_extras=(),
+        is_gateway=False,
+        is_local=True,
+        detect_by_key_prefix="",
+        detect_by_base_keyword="",
+        default_api_base="http://localhost:8080/v1",
+        strip_model_prefix=False,
+        model_overrides=(),
+    ),
+
     # === Local deployment (matched by config key, NOT by api_base) =========
 
     # vLLM / any OpenAI-compatible local server.

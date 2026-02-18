@@ -50,9 +50,10 @@ class SubagentManager:
         self.restrict_to_workspace = restrict_to_workspace
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
         
-        # Load centralized prompts from agent/CONTEXT.md
+        # Load centralized prompts from CONTEXT.md
         from nanobot.agent.context import PromptLoader
-        context_md_path = Path(__file__).parent / "CONTEXT.md"
+        # subagent.py is in nanobot/agent/, so we go up to nanobot/CONTEXT.md
+        context_md_path = Path(__file__).parent.parent / "CONTEXT.md"
         self.prompts = PromptLoader(context_md_path)
     
     async def spawn(

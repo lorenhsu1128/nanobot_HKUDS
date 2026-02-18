@@ -1,0 +1,132 @@
+{
+  "agents": {
+    "defaults": {
+      "workspace": "~/.nanobot/workspace",
+      "model": "anthropic/claude-3-opus-20240229",
+      "maxTokens": 8192,
+      "temperature": 0.7,
+      "maxToolIterations": 20,
+      "memoryWindow": 50
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": false,
+      "token": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+      "allowFrom": ["user_id_123", "username_test"],
+      "proxy": "http://127.0.0.1:7890"
+    },
+    "discord": {
+      "enabled": false,
+      "token": "MTAw...",
+      "allowFrom": ["123456789012345678"],
+      "gatewayUrl": "wss://gateway.discord.gg/?v=10&encoding=json",
+      "intents": 37377
+    },
+    "slack": {
+      "enabled": false,
+      "mode": "socket",
+      "botToken": "xoxb-...",
+      "appToken": "xapp-...",
+      "userTokenReadOnly": true,
+      "groupPolicy": "mention",
+      "groupAllowFrom": ["C12345678"],
+      "dm": {
+        "enabled": true,
+        "policy": "open",
+        "allowFrom": []
+      }
+    },
+    "whatsapp": {
+      "enabled": false,
+      "bridgeUrl": "ws://localhost:3001",
+      "bridgeToken": "secret_token",
+      "allowFrom": ["12025550123"]
+    },
+    "email": {
+      "enabled": false,
+      "consentGranted": false,
+      "imapHost": "imap.gmail.com",
+      "imapPort": 993,
+      "imapUsername": "user@gmail.com",
+      "imapPassword": "app-password",
+      "imapMailbox": "INBOX",
+      "imapUseSsl": true,
+      "smtpHost": "smtp.gmail.com",
+      "smtpPort": 587,
+      "smtpUsername": "user@gmail.com",
+      "smtpPassword": "app-password",
+      "smtpUseTls": true,
+      "smtpUseSsl": false,
+      "fromAddress": "Nanobot <user@gmail.com>",
+      "autoReplyEnabled": true,
+      "pollIntervalSeconds": 30,
+      "markSeen": true,
+      "maxBodyChars": 12000,
+      "subjectPrefix": "Re: ",
+      "allowFrom": ["boss@example.com"]
+    }
+  },
+  "providers": {
+    "openai": {
+      "apiKey": "sk-...",
+      "apiBase": "https://api.openai.com/v1",
+      "extraHeaders": {}
+    },
+    "anthropic": {
+      "apiKey": "sk-ant-..."
+    },
+    "openrouter": {
+      "apiKey": "sk-or-..."
+    },
+    "deepseek": {
+      "apiKey": "sk-..."
+    },
+    "groq": {
+      "apiKey": "gsk-..."
+    },
+    "vllm": {
+      "apiKey": "EMPTY",
+      "apiBase": "http://localhost:8000/v1"
+    },
+    "ollama": {
+      "apiKey": "ollama",
+      "apiBase": "http://localhost:11434"
+    },
+    "llamacpp": {
+      "apiKey": "none",
+      "apiBase": "http://localhost:8080/v1"
+    }
+  },
+  "gateway": {
+    "host": "0.0.0.0",
+    "port": 18790
+  },
+  "tools": {
+    "restrictToWorkspace": false,
+    "web": {
+      "search": {
+        "apiKey": "BS-...",
+        "maxResults": 5
+      }
+    },
+    "exec": {
+      "timeout": 60
+    },
+    "mcpServers": {
+      "filesystem": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"],
+        "env": {}
+      },
+      "memory": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"]
+      },
+      "chrome-devtools": {
+        "command": "npx",
+        "args": ["-y", "chrome-devtools-mcp@latest"]
+      }
+    }
+  }
+}

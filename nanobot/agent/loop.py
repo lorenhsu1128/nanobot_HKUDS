@@ -398,10 +398,11 @@ class AgentLoop:
         conversation = "\n".join(lines)
         current_memory = memory.read_long_term()
 
-        # Load centralized prompts from agent/CONTEXT.md
+        # Load centralized prompts from CONTEXT.md
         if not hasattr(self, "_prompts"):
             from nanobot.agent.context import PromptLoader
-            context_md_path = Path(__file__).parent / "CONTEXT.md"
+            # loop.py is in nanobot/agent/, so we go up to nanobot/CONTEXT.md
+            context_md_path = Path(__file__).parent.parent / "CONTEXT.md"
             self._prompts = PromptLoader(context_md_path)
 
         prompt = self._prompts.get(
