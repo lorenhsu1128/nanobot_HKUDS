@@ -121,6 +121,16 @@
         "command": "npx",
         "args": ["-y", "chrome-devtools-mcp@latest"]
       }
+    },
+    "lsp": {
+      "python": {
+        "command": "pylsp",
+        "args": []
+      }
+    },
+    "custom": [
+      "examples.custom_tool.RandomNumberTool"
+    ]
     }
   }
 }

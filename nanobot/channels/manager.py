@@ -32,57 +32,46 @@ class ChannelManager:
         self._init_channels()
     
     def _init_channels(self) -> None:
-        """Initialize channels based on config."""
-        
-        # Telegram channel
-        if self.config.channels.telegram.enabled:
+        """Initialize channels based on config and registry."""
+        import importlib
+
+        # Registry mapping config key -> (module_path, class_name)
+        # This can be moved to a separate registry file later
+        CHANNEL_REGISTRY = {
+            "telegram": ("nanobot.channels.telegram", "TelegramChannel"),
+            "discord": ("nanobot.channels.discord", "DiscordChannel"),
+            "email": ("nanobot.channels.email", "EmailChannel"),
+            "slack": ("nanobot.channels.slack", "SlackChannel"),
+        }
+
+        for channel_name, (module_path, class_name) in CHANNEL_REGISTRY.items():
+            # Check if enabled in config
+            if not hasattr(self.config.channels, channel_name):
+                continue
+            
+            cfg = getattr(self.config.channels, channel_name)
+            if not cfg.enabled:
+                continue
+
             try:
-                from nanobot.channels.telegram import TelegramChannel
-                self.channels["telegram"] = TelegramChannel(
-                    self.config.channels.telegram,
+                module = importlib.import_module(module_path)
+                channel_class = getattr(module, class_name)
+                
+                # Special handling for args
+                kwargs = {}
+                if channel_name == "telegram":
+                    kwargs["groq_api_key"] = self.config.providers.groq.api_key
+                
+                self.channels[channel_name] = channel_class(
+                    cfg,
                     self.bus,
-                    groq_api_key=self.config.providers.groq.api_key,
+                    **kwargs
                 )
-                logger.info("Telegram channel enabled")
+                logger.info(f"{class_name} enabled")
             except ImportError as e:
-                logger.warning(f"Telegram channel not available: {e}")
-        
-
-        # Discord channel
-        if self.config.channels.discord.enabled:
-            try:
-                from nanobot.channels.discord import DiscordChannel
-                self.channels["discord"] = DiscordChannel(
-                    self.config.channels.discord, self.bus
-                )
-                logger.info("Discord channel enabled")
-            except ImportError as e:
-                logger.warning(f"Discord channel not available: {e}")
-        
-
-
-
-        # Email channel
-        if self.config.channels.email.enabled:
-            try:
-                from nanobot.channels.email import EmailChannel
-                self.channels["email"] = EmailChannel(
-                    self.config.channels.email, self.bus
-                )
-                logger.info("Email channel enabled")
-            except ImportError as e:
-                logger.warning(f"Email channel not available: {e}")
-
-        # Slack channel
-        if self.config.channels.slack.enabled:
-            try:
-                from nanobot.channels.slack import SlackChannel
-                self.channels["slack"] = SlackChannel(
-                    self.config.channels.slack, self.bus
-                )
-                logger.info("Slack channel enabled")
-            except ImportError as e:
-                logger.warning(f"Slack channel not available: {e}")
+                logger.warning(f"{channel_name} channel not available: {e}")
+            except Exception as e:
+                logger.error(f"Failed to initialize {channel_name}: {e}")
 
     
     async def _start_channel(self, name: str, channel: BaseChannel) -> None:

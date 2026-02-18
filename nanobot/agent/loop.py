@@ -56,6 +56,7 @@ class AgentLoop:
         session_manager: SessionManager | None = None,
         mcp_servers: dict | None = None,
         lsp_config: dict | None = None,
+        custom_tools: list[str] | None = None,
     ):
         from nanobot.config.schema import ExecToolConfig
         from nanobot.cron.service import CronService
@@ -71,6 +72,7 @@ class AgentLoop:
         self.exec_config = exec_config or ExecToolConfig()
         self.cron_service = cron_service
         self.restrict_to_workspace = restrict_to_workspace
+        self.custom_tools_config = custom_tools or []
 
         self.context = ContextBuilder(workspace)
         self.sessions = session_manager or SessionManager(workspace)
@@ -131,6 +133,13 @@ class AgentLoop:
         self.tools.register(LSPDefinitionTool(self.lsp))
         self.tools.register(LSPReferencesTool(self.lsp))
         self.tools.register(LSPHoverTool(self.lsp))
+
+        # Custom tools
+        if self.custom_tools_config:
+            from nanobot.agent.tools.loader import load_tools
+            custom_tools = load_tools(self.custom_tools_config)
+            for tool in custom_tools:
+                self.tools.register(tool)
     
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""

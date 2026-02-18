@@ -20,6 +20,8 @@
 
 ## 📢 News
 
+- **2026-02-18** 🧩 **Plugin System & LSP**: Nanobot now supports **Custom Tools** via plugins and **LSP (Language Server Protocol)** for code intelligence!
+- **2026-02-18** 📂 **Workspace**: Enhanced workspace mechanism with structured memory and identity management.
 - **2026-02-16** 🦞 nanobot now integrates a [ClawHub](https://clawhub.ai) skill — search and install public agent skills.
 - **2026-02-15** 🔑 nanobot now supports OpenAI Codex provider with OAuth login support.
 - **2026-02-14** 🔌 nanobot now supports MCP! See [MCP section](#mcp-model-context-protocol) for details.

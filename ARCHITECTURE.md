@@ -50,6 +50,8 @@ graph TD
         Context[ContextBuilder]
         Tools[ToolRegistry]
         SubMgr[SubagentManager]
+        LSP[LSPManager]
+        Plugin[PluginLoader]
     end
 
     subgraph Knowledge_Storage [Storage & Skills]
@@ -60,6 +62,7 @@ graph TD
 
     subgraph External_Services [External]
         LLM[LLM Provider<br/>OpenAI/Claude/etc.]:::ext
+        LSPServer[LSP Server<br/>pylsp/gopls/etc.]:::ext
     end
 
     %% Flows - Entry
@@ -93,6 +96,12 @@ graph TD
     Loop -- "3. Execute" --> Tools
     Tools -- "Spawn" --> SubMgr
     SubMgr -.->|Result| Loop
+
+    Loop -- "Manage" --> LSP
+    LSP -- "JSON-RPC" --> LSPServer
+
+    Loop -- "Load" --> Plugin
+    Plugin -- "Register" --> Tools
 ```
 
 ## 架構說明
@@ -509,7 +518,22 @@ nanobot/
     └── TOOLS.md            #    工具使用範例 (Few-shot)
 ```
 
-### 7. 通訊架構與網路互動 (Communication & Network Interaction)
+### 7. LSP Integration (LSP 整合)
+
+Nanobot 整合了 **Language Server Protocol (LSP)**，使其具備 IDE 等級的程式碼理解能力。
+
+- **LSPManager**: 管理多個 LSP Server (如 `pylsp`) 的生命週期。
+- **LSPClient**: 處理 JSON-RPC 通訊與協議細節。
+- **Tools**: 提供 `definition`, `references`, `hover` 工具，讓 Agent 能精準導航程式碼。
+
+### 8. Plugin System (插件系統)
+
+支援動態載入外部功能：
+
+- **Custom Tools**: 透過 `config.tools.custom` 載入 Python 類別作為 Agent 工具。
+- **Dynamic Channels**: 通道層支援動態載入，方便擴充新的通訊平台。
+
+### 9. 通訊架構與網路互動 (Communication & Network Interaction)
 
 Nanobot 設計為可在私有網路 (如家中或公司內部) 運作，無需固定公網 IP 即可與外部通訊軟體 (如 Telegram) 互動。
 

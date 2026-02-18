@@ -126,3 +126,42 @@
   }
 }
 ```
+
+## 6. LSP 設定 (`tools.lsp`)
+
+設定 Language Server Protocol 伺服器，賦予 Agent 程式碼導航能力。
+
+| 欄位 (Key) | 類型         | 說明                                           |
+| :--------- | :----------- | :--------------------------------------------- |
+| `command`  | string       | 啟動 LSP Server 的指令 (例如 `"pylsp"`).       |
+| `args`     | list[string] | 傳遞給指令的參數 (例如 `["-v"]`).              |
+| `env`      | dict         | (選用) 額外的環境變數.                         |
+| `root_uri` | string       | (選用) 專案根目錄 URI，預設自動偵側 Workspace. |
+
+**範例**:
+
+```json
+"lsp": {
+  "python": {
+    "command": "pylsp",
+    "args": ["-v"]
+  }
+}
+```
+
+## 7. 自訂工具設定 (`tools.custom`)
+
+載入外部 Python 類別作為 Agent 工具。
+
+- **類型**: `list[string]`
+- **格式**: `"module.path.ClassName"`
+- **說明**: 該模組必須在 PYTHONPATH 中或位於工作目錄下。
+
+**範例**:
+
+```json
+"custom": [
+  "my_tools.StockPriceTool",
+  "utils.pdf_reader.PDFTool"
+]
+```

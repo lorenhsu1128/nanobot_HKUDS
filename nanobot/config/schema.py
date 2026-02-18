@@ -176,6 +176,7 @@ class ToolsConfig(BaseModel):
     restrict_to_workspace: bool = False  # If true, restrict all tool access to workspace directory
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
     lsp: dict[str, LSPConfig] = Field(default_factory=dict)
+    custom: list[str] = Field(default_factory=list)  # List of "module.ClassName" strings
 
 
 class Config(BaseSettings):
