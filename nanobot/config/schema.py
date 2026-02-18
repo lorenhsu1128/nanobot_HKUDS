@@ -161,12 +161,21 @@ class MCPServerConfig(BaseModel):
     url: str = ""  # HTTP: streamable HTTP endpoint URL
 
 
+class LSPConfig(BaseModel):
+    """LSP server configuration for a specific language."""
+    command: str
+    args: list[str] = Field(default_factory=list)
+    root_uri: str | None = None
+    env: dict[str, str] = Field(default_factory=dict)
+
+
 class ToolsConfig(BaseModel):
     """Tools configuration."""
     web: WebToolsConfig = Field(default_factory=WebToolsConfig)
     exec: ExecToolConfig = Field(default_factory=ExecToolConfig)
     restrict_to_workspace: bool = False  # If true, restrict all tool access to workspace directory
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
+    lsp: dict[str, LSPConfig] = Field(default_factory=dict)
 
 
 class Config(BaseSettings):

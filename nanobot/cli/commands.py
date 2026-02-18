@@ -235,33 +235,7 @@ def _create_workspace_templates(workspace: Path):
     skills_dir.mkdir(exist_ok=True)
 
 
-def _make_provider(config: Config):
-    """Create LiteLLMProvider from config. Exits if no API key found."""
-    from nanobot.providers.litellm_provider import LiteLLMProvider
-    from nanobot.providers.openai_codex_provider import OpenAICodexProvider
 
-    model = config.agents.defaults.model
-    provider_name = config.get_provider_name(model)
-    p = config.get_provider(model)
-
-    # OpenAI Codex (OAuth): don't route via LiteLLM; use the dedicated implementation.
-    if provider_name == "openai_codex" or model.startswith("openai-codex/"):
-        return OpenAICodexProvider(default_model=model)
-
-    from nanobot.providers.registry import find_by_name
-    spec = find_by_name(provider_name)
-    if not model.startswith("bedrock/") and not (p and p.api_key) and not (spec and spec.is_oauth):
-        console.print("[red]Error: No API key configured.[/red]")
-        console.print("Set one in ~/.nanobot/config.json under providers section")
-        raise typer.Exit(1)
-
-    return LiteLLMProvider(
-        api_key=p.api_key if p else None,
-        api_base=config.get_api_base(model),
-        default_model=model,
-        extra_headers=p.extra_headers if p else None,
-        provider_name=provider_name,
-    )
 
 
 # ============================================================================
@@ -290,9 +264,16 @@ def gateway(
     
     console.print(f"{__logo__} Starting nanobot gateway on port {port}...")
     
+    from nanobot.providers.factory import ProviderFactory, ProviderConfigurationError
+    
     config = load_config()
     bus = MessageBus()
-    provider = _make_provider(config)
+    try:
+        provider = ProviderFactory.create(config)
+    except ProviderConfigurationError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
     session_manager = SessionManager(config.workspace_path)
     
     # Create cron service first (callback set after agent creation)
@@ -315,6 +296,7 @@ def gateway(
         restrict_to_workspace=config.tools.restrict_to_workspace,
         session_manager=session_manager,
         mcp_servers=config.tools.mcp_servers,
+        lsp_config=config.tools.lsp,
     )
     
     # Set cron callback (needs agent)
@@ -402,10 +384,17 @@ def agent(
     from nanobot.agent.loop import AgentLoop
     from loguru import logger
     
+    from nanobot.providers.factory import ProviderFactory, ProviderConfigurationError
+    
     config = load_config()
     
     bus = MessageBus()
-    provider = _make_provider(config)
+    try:
+        provider = ProviderFactory.create(config)
+    except ProviderConfigurationError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
 
     if logs:
         logger.enable("nanobot")
@@ -425,6 +414,7 @@ def agent(
         exec_config=config.tools.exec,
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
+        lsp_config=config.tools.lsp,
     )
     
     # Show spinner when logs are off (no output to miss); skip when logs are on

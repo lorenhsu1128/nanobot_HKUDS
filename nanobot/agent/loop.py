@@ -23,6 +23,8 @@ from nanobot.agent.tools.cron import CronTool
 from nanobot.agent.memory import MemoryStore
 from nanobot.agent.subagent import SubagentManager
 from nanobot.session.manager import Session, SessionManager
+from nanobot.lsp.manager import LSPManager
+from nanobot.agent.tools.lsp import LSPDefinitionTool, LSPReferencesTool, LSPHoverTool
 
 
 class AgentLoop:
@@ -53,6 +55,7 @@ class AgentLoop:
         restrict_to_workspace: bool = False,
         session_manager: SessionManager | None = None,
         mcp_servers: dict | None = None,
+        lsp_config: dict | None = None,
     ):
         from nanobot.config.schema import ExecToolConfig
         from nanobot.cron.service import CronService
@@ -84,6 +87,8 @@ class AgentLoop:
             restrict_to_workspace=restrict_to_workspace,
         )
         
+        self.lsp = LSPManager(lsp_config or {}, workspace)
+
         self._running = False
         self._mcp_servers = mcp_servers or {}
         self._mcp_stack: AsyncExitStack | None = None
@@ -121,6 +126,11 @@ class AgentLoop:
         # Cron tool (for scheduling)
         if self.cron_service:
             self.tools.register(CronTool(self.cron_service))
+
+        # LSP tools
+        self.tools.register(LSPDefinitionTool(self.lsp))
+        self.tools.register(LSPReferencesTool(self.lsp))
+        self.tools.register(LSPHoverTool(self.lsp))
     
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""
@@ -238,6 +248,8 @@ class AgentLoop:
             except (RuntimeError, BaseExceptionGroup):
                 pass  # MCP SDK cancel scope cleanup is noisy but harmless
             self._mcp_stack = None
+        
+        await self.lsp.shutdown()
 
     def stop(self) -> None:
         """Stop the agent loop."""
