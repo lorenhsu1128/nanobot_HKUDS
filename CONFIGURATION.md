@@ -65,8 +65,6 @@
 | `pollIntervalSeconds`  | int         | 檢查新郵件的間隔秒數 (預設 30)。                |
 | `allowFrom`            | list[str]   | 允許互動的寄件者 Email 地址白名單。             |
 
-**(WhatsApp 設定類似，需搭配外部 Bridge 使用)**
-
 ## 3. 模型供應商 (`providers`)
 
 設定 LLM API 金鑰與端點。Nanobot 使用 LiteLLM，支援大多數供應商。

@@ -478,7 +478,7 @@ nanobot/
 │   ├── discord.py          #    Discord Bot 實作
 │   ├── slack.py            #    Slack Bot (Socket Mode) 實作
 │   ├── line.py             #    LINE Bot 實作
-│   ├── whatsapp.py         #    WhatsApp (Web Automation) 實作
+
 │   └── ...                 #    其他通道 (Email)
 │
 ├── config/                 # ⚙️ 設定管理

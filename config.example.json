@@ -37,12 +37,6 @@
         "allowFrom": []
       }
     },
-    "whatsapp": {
-      "enabled": false,
-      "bridgeUrl": "ws://localhost:3001",
-      "bridgeToken": "secret_token",
-      "allowFrom": ["12025550123"]
-    },
     "email": {
       "enabled": false,
       "consentGranted": false,
