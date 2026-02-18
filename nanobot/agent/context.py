@@ -10,6 +10,48 @@ from nanobot.agent.memory import MemoryStore
 from nanobot.agent.skills import SkillsLoader
 
 
+class PromptLoader:
+    """Loads and formats prompts from CONTEXT.md."""
+
+    def __init__(self, context_path: Path):
+        self.prompts = self._load_prompts(context_path)
+
+    def _load_prompts(self, path: Path) -> dict[str, str]:
+        if not path.exists():
+            return {}
+        
+        content = path.read_text(encoding="utf-8")
+        prompts = {}
+        current_title = None
+        current_lines = []
+
+        import re
+        # Match lines strictly like # ===[Title]===
+        title_pattern = re.compile(r"^# ===\[(.+?)\]===$")
+
+        for line in content.splitlines():
+            match = title_pattern.match(line.strip())
+            if match:
+                if current_title:
+                    prompts[current_title] = "\n".join(current_lines).strip()
+                current_title = match.group(1).strip()
+                current_lines = []
+            else:
+                current_lines.append(line)
+        
+        if current_title:
+            prompts[current_title] = "\n".join(current_lines).strip()
+            
+        return prompts
+
+    def get(self, key: str, **kwargs: Any) -> str:
+        """Get a prompt template and format it with kwargs."""
+        template = self.prompts.get(key, "")
+        if not template:
+            return ""
+        return template.format(**kwargs)
+
+
 class ContextBuilder:
     """
     Builds the context (system prompt + messages) for the agent.
@@ -24,6 +66,11 @@ class ContextBuilder:
         self.workspace = workspace
         self.memory = MemoryStore(workspace)
         self.skills = SkillsLoader(workspace)
+        
+        # Load centralized prompts
+        # Assuming CONTEXT.md is in the same directory as this file
+        context_md_path = Path(__file__).parent / "CONTEXT.md"
+        self.prompts = PromptLoader(context_md_path)
     
     def build_system_prompt(self, skill_names: list[str] | None = None) -> str:
         """
@@ -61,12 +108,9 @@ class ContextBuilder:
         # 2. Available skills: only show summary (agent uses read_file to load)
         skills_summary = self.skills.build_skills_summary()
         if skills_summary:
-            parts.append(f"""# Skills
-
-The following skills extend your capabilities. To use a skill, read its SKILL.md file using the read_file tool.
-Skills with available="false" need dependencies installed first - you can try installing them with apt/brew.
-
-{skills_summary}""")
+            prompt = self.prompts.get("Skills Summary", skills_summary=skills_summary)
+            if prompt:
+                parts.append(prompt)
         
         return "\n\n---\n\n".join(parts)
     
@@ -80,34 +124,13 @@ Skills with available="false" need dependencies installed first - you can try in
         system = platform.system()
         runtime = f"{'macOS' if system == 'Darwin' else system} {platform.machine()}, Python {platform.python_version()}"
         
-        return f"""# nanobot 🐈
-
-You are nanobot, a helpful AI assistant. You have access to tools that allow you to:
-- Read, write, and edit files
-- Execute shell commands
-- Search the web and fetch web pages
-- Send messages to users on chat channels
-- Spawn subagents for complex background tasks
-
-## Current Time
-{now} ({tz})
-
-## Runtime
-{runtime}
-
-## Workspace
-Your workspace is at: {workspace_path}
-- Long-term memory: {workspace_path}/memory/MEMORY.md
-- History log: {workspace_path}/memory/HISTORY.md (grep-searchable)
-- Custom skills: {workspace_path}/skills/{{skill-name}}/SKILL.md
-
-IMPORTANT: When responding to direct questions or conversations, reply directly with your text response.
-Only use the 'message' tool when you need to send a message to a specific chat channel (like WhatsApp).
-For normal conversation, just respond with text - do not call the message tool.
-
-Always be helpful, accurate, and concise. When using tools, think step by step: what you know, what you need, and why you chose this tool.
-When remembering something important, write to {workspace_path}/memory/MEMORY.md
-To recall past events, grep {workspace_path}/memory/HISTORY.md"""
+        return self.prompts.get(
+            "Identity",
+            now=now,
+            tz=tz,
+            runtime=runtime,
+            workspace_path=workspace_path
+        )
     
     def _load_bootstrap_files(self) -> str:
         """Load all bootstrap files from workspace."""

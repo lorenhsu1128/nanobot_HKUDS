@@ -86,10 +86,24 @@ class ExecTool(Tool):
             output_parts = []
             
             if stdout:
-                output_parts.append(stdout.decode("utf-8", errors="replace"))
+                try:
+                    output_parts.append(stdout.decode("utf-8"))
+                except UnicodeDecodeError:
+                    # Fallback for Windows console (often cp950/mbcs)
+                    try:
+                        output_parts.append(stdout.decode("mbcs" if os.name == "nt" else "latin-1", errors="replace"))
+                    except Exception:
+                         output_parts.append(stdout.decode("utf-8", errors="replace"))
             
             if stderr:
-                stderr_text = stderr.decode("utf-8", errors="replace")
+                try:
+                    stderr_text = stderr.decode("utf-8")
+                except UnicodeDecodeError:
+                    try:
+                         stderr_text = stderr.decode("mbcs" if os.name == "nt" else "latin-1", errors="replace")
+                    except Exception:
+                        stderr_text = stderr.decode("utf-8", errors="replace")
+                
                 if stderr_text.strip():
                     output_parts.append(f"STDERR:\n{stderr_text}")
             

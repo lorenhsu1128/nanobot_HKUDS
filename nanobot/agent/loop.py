@@ -398,19 +398,17 @@ class AgentLoop:
         conversation = "\n".join(lines)
         current_memory = memory.read_long_term()
 
-        prompt = f"""You are a memory consolidation agent. Process this conversation and return a JSON object with exactly two keys:
+        # Load centralized prompts from agent/CONTEXT.md
+        if not hasattr(self, "_prompts"):
+            from nanobot.agent.context import PromptLoader
+            context_md_path = Path(__file__).parent / "CONTEXT.md"
+            self._prompts = PromptLoader(context_md_path)
 
-1. "history_entry": A paragraph (2-5 sentences) summarizing the key events/decisions/topics. Start with a timestamp like [YYYY-MM-DD HH:MM]. Include enough detail to be useful when found by grep search later.
-
-2. "memory_update": The updated long-term memory content. Add any new facts: user location, preferences, personal info, habits, project context, technical decisions, tools/services used. If nothing new, return the existing content unchanged.
-
-## Current Long-term Memory
-{current_memory or "(empty)"}
-
-## Conversation to Process
-{conversation}
-
-Respond with ONLY valid JSON, no markdown fences."""
+        prompt = self._prompts.get(
+            "Memory Consolidation",
+            current_memory=current_memory or "(empty)",
+            conversation=conversation
+        )
 
         try:
             response = await self.provider.chat(

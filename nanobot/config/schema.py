@@ -21,22 +21,8 @@ class TelegramConfig(BaseModel):
     proxy: str | None = None  # HTTP/SOCKS5 proxy URL, e.g. "http://127.0.0.1:7890" or "socks5://127.0.0.1:1080"
 
 
-class FeishuConfig(BaseModel):
-    """Feishu/Lark channel configuration using WebSocket long connection."""
-    enabled: bool = False
-    app_id: str = ""  # App ID from Feishu Open Platform
-    app_secret: str = ""  # App Secret from Feishu Open Platform
-    encrypt_key: str = ""  # Encrypt Key for event subscription (optional)
-    verification_token: str = ""  # Verification Token for event subscription (optional)
-    allow_from: list[str] = Field(default_factory=list)  # Allowed user open_ids
 
 
-class DingTalkConfig(BaseModel):
-    """DingTalk channel configuration using Stream mode."""
-    enabled: bool = False
-    client_id: str = ""  # AppKey
-    client_secret: str = ""  # AppSecret
-    allow_from: list[str] = Field(default_factory=list)  # Allowed staff_ids
 
 
 class DiscordConfig(BaseModel):
@@ -78,40 +64,6 @@ class EmailConfig(BaseModel):
     allow_from: list[str] = Field(default_factory=list)  # Allowed sender email addresses
 
 
-class MochatMentionConfig(BaseModel):
-    """Mochat mention behavior configuration."""
-    require_in_groups: bool = False
-
-
-class MochatGroupRule(BaseModel):
-    """Mochat per-group mention requirement."""
-    require_mention: bool = False
-
-
-class MochatConfig(BaseModel):
-    """Mochat channel configuration."""
-    enabled: bool = False
-    base_url: str = "https://mochat.io"
-    socket_url: str = ""
-    socket_path: str = "/socket.io"
-    socket_disable_msgpack: bool = False
-    socket_reconnect_delay_ms: int = 1000
-    socket_max_reconnect_delay_ms: int = 10000
-    socket_connect_timeout_ms: int = 10000
-    refresh_interval_ms: int = 30000
-    watch_timeout_ms: int = 25000
-    watch_limit: int = 100
-    retry_delay_ms: int = 500
-    max_retry_attempts: int = 0  # 0 means unlimited retries
-    claw_token: str = ""
-    agent_user_id: str = ""
-    sessions: list[str] = Field(default_factory=list)
-    panels: list[str] = Field(default_factory=list)
-    allow_from: list[str] = Field(default_factory=list)
-    mention: MochatMentionConfig = Field(default_factory=MochatMentionConfig)
-    groups: dict[str, MochatGroupRule] = Field(default_factory=dict)
-    reply_delay_mode: str = "non-mention"  # off | non-mention
-    reply_delay_ms: int = 120000
 
 
 class SlackDMConfig(BaseModel):
@@ -134,12 +86,6 @@ class SlackConfig(BaseModel):
     dm: SlackDMConfig = Field(default_factory=SlackDMConfig)
 
 
-class QQConfig(BaseModel):
-    """QQ channel configuration using botpy SDK."""
-    enabled: bool = False
-    app_id: str = ""  # 机器人 ID (AppID) from q.qq.com
-    secret: str = ""  # 机器人密钥 (AppSecret) from q.qq.com
-    allow_from: list[str] = Field(default_factory=list)  # Allowed user openids (empty = public access)
 
 
 class ChannelsConfig(BaseModel):
@@ -147,12 +93,8 @@ class ChannelsConfig(BaseModel):
     whatsapp: WhatsAppConfig = Field(default_factory=WhatsAppConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
-    feishu: FeishuConfig = Field(default_factory=FeishuConfig)
-    mochat: MochatConfig = Field(default_factory=MochatConfig)
-    dingtalk: DingTalkConfig = Field(default_factory=DingTalkConfig)
     email: EmailConfig = Field(default_factory=EmailConfig)
     slack: SlackConfig = Field(default_factory=SlackConfig)
-    qq: QQConfig = Field(default_factory=QQConfig)
 
 
 class AgentDefaults(BaseModel):
