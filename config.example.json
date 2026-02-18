@@ -131,6 +131,6 @@
     "custom": [
       "examples.custom_tool.RandomNumberTool"
     ]
-    }
   }
 }
+
