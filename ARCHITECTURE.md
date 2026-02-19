@@ -573,3 +573,79 @@ sequenceDiagram
 ```
 
 這種架構確保了 Nanobot 在私有網路中的安全性與易用性。
+
+## Workspace 載入順序與路徑 (Workspace Loading Logic)
+
+Nanobot 採用「**專案優先，全域為輔**」的載入邏輯，確保開發者可以擁有通用的全域設定，也能針對特定專案進行客製化。
+
+### 1. 載入優先級 (Loading Priority)
+
+當啟動 Nanobot 時，系統會依序檢查以下路徑來決定使用哪個 Workspace 與 Config：
+
+1.  **專案設定 (Project Level)**:
+    - **路徑**: `./.nanobot/workspace/` (當前目錄下)
+    - **觸發**: 若當前目錄包含 `.nanobot` 資料夾，則視為一個獨立專案，優先載入此處的設定與 Workspace。
+    - **建立方式**: 在專案目錄執行 `nanobot onboard`。
+
+2.  **全域設定 (Global Level)**:
+    - **路徑**: `~/.nanobot/workspace/` (使用者家目錄下)
+    - **觸發**: 若當前目錄無專案設定，則載入全域設定。
+    - **建立方式**: 執行任何 nanobot 指令 (如 `nanobot status`) 時，若全域設定不存在，系統會**自動初始化**。
+
+### 2. 資料載入順序 (Data Loading Sequence)
+
+確定 Workspace 路徑 (設為 `WS`) 後，依序載入以下資源：
+
+1.  **Context (Prompt Templates)**
+    - **路徑**：`WS/CONTEXT.md`
+    - **說明**：核心 Prompt，包含 Identity, Skills Summary 等模板。
+
+2.  **Bootstrap Files (人格與使用者設定)**
+    - **路徑** (依序讀取)：
+      1.  `WS/IDENTITY.md` (選用)
+      2.  `WS/AGENTS.md` (Agent 角色定義)
+      3.  `WS/SOUL.md` (Agent 核心靈魂/個性)
+      4.  `WS/USER.md` (使用者資訊)
+      5.  `WS/TOOLS.md` (選用，工具說明)
+    - **機制**：`ContextBuilder` 組裝成 System Prompt。
+
+3.  **Memory (記憶系統)**
+    - **路徑**：`WS/memory/MEMORY.md`
+    - **說明**：長期記憶，啟動時讀入 System Prompt。
+
+4.  **Skills (技能)**
+    - **路徑**：`WS/skills/` 下的所有子目錄
+    - **機制**：根據 `SKILL.md` 設定決定是直接載入 (Always) 還是按需載入 (Read File)。
+
+5.  **Custom Tools (自訂工具)**
+    - **路徑**：`WS/tools/`
+    - **機制**：
+      1.  將 `WS/tools/` 加入 Python `sys.path`。
+      2.  根據 `config.json` 載入指定模組。
+
+### 3. 載入流程圖 (Loading Flowchart)
+
+```mermaid
+flowchart TD
+    Start([Nanobot Start]) --> CheckEnv{"Check ENV<br/>NANOBOT_CONFIG_PATH"}
+
+    CheckEnv -- Yes --> UseEnv["Load Config from ENV"]
+    CheckEnv -- No --> CheckLocal{"Check ./nanobot/config.json"}
+
+    CheckLocal -- Exists --> UseLocal["Load Project Config<br/>(.nanobot)"]
+    CheckLocal -- Missing --> CheckGlobal{"Check ~/.nanobot/config.json"}
+
+    CheckGlobal -- Exists --> UseGlobal["Load Global Config<br/>(~/.nanobot)"]
+    CheckGlobal -- Missing --> AutoInit["Auto-Initialize Global<br/>(~/.nanobot)"]
+    AutoInit --> UseGlobal
+
+    UseEnv & UseLocal & UseGlobal --> ResolveWS["Resolve Workspace Path"]
+
+    ResolveWS --> LoadCtx["1. Context (CONTEXT.md)"]
+    LoadCtx --> LoadBoot["2. Bootstrap (AGENTS/SOUL/USER.md)"]
+    LoadBoot --> LoadMem["3. Memory (MEMORY.md)"]
+    LoadMem --> LoadSkills["4. Skills (skills/*)"]
+    LoadSkills --> LoadTools["5. Custom Tools (tools/*)"]
+
+    LoadTools --> Ready([Agent Ready])
+```

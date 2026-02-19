@@ -19,8 +19,13 @@ def get_workspace_path(workspace: str | None = None) -> Path:
     """
     Get the workspace path.
     
+    Priority:
+    1. Explicit argument
+    2. Local project workspace (.nanobot/workspace in current dir)
+    3. Global workspace (~/.nanobot/workspace)
+    
     Args:
-        workspace: Optional workspace path. Defaults to ~/.nanobot/workspace.
+        workspace: Optional workspace path override.
     
     Returns:
         Expanded and ensured workspace path.
@@ -28,7 +33,13 @@ def get_workspace_path(workspace: str | None = None) -> Path:
     if workspace:
         path = Path(workspace).expanduser()
     else:
-        path = Path.home() / ".nanobot" / "workspace"
+        # Check local project workspace first
+        local_workspace = Path.cwd() / ".nanobot" / "workspace"
+        if local_workspace.exists():
+            path = local_workspace
+        else:
+            path = Path.home() / ".nanobot" / "workspace"
+            
     return ensure_dir(path)
 
 

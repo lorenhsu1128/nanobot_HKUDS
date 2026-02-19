@@ -190,7 +190,13 @@ class Config(BaseSettings):
     @property
     def workspace_path(self) -> Path:
         """Get expanded workspace path."""
-        return Path(self.agents.defaults.workspace).expanduser()
+        # If user explicitly set a workspace in config, use it.
+        # Otherwise, fall back to auto-detection (local vs global).
+        if self.agents.defaults.workspace and self.agents.defaults.workspace != "~/.nanobot/workspace":
+             return Path(self.agents.defaults.workspace).expanduser()
+        
+        from nanobot.utils.helpers import get_workspace_path
+        return get_workspace_path()
     
     def _match_provider(self, model: str | None = None) -> tuple["ProviderConfig | None", str | None]:
         """Match provider config and its registry name. Returns (config, spec_name)."""

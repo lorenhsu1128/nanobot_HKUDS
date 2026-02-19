@@ -155,96 +155,42 @@ def main(
 
 @app.command()
 def onboard():
-    """Initialize nanobot configuration and workspace."""
-    from nanobot.config.loader import get_config_path, load_config, save_config
-    from nanobot.config.schema import Config
-    from nanobot.utils.helpers import get_workspace_path
-    import shutil
+    """Initialize nanobot configuration and workspace in current directory."""
+    from nanobot.utils.initializer import initialize_nanobot
     
+    # Force local project initialization
+    local_root = Path.cwd() / ".nanobot"
+    
+    if local_root.exists():
+        console.print(f"[yellow]Project settings found at {local_root}[/yellow]")
+        if not typer.confirm("Re-initialize (this may overwrite files)?"):
+            return
+
+    initialize_nanobot(local_root)
+    console.print(f"\n[green]Project initialized at {local_root}[/green]")
+    console.print("Nanobot will now prioritize this configuration when running in this directory.")
+
+
+def _ensure_global_init():
+    """Ensure global nanobot configuration exists."""
+    from nanobot.config.loader import get_config_path
+    from nanobot.utils.initializer import initialize_nanobot
+    
+    # Check if ANY config exists (env, local, or global)
+    # If get_config_path returns a path that exists, we are good.
     config_path = get_config_path()
     
-    # 1. Config initialization
-    # Source config.example.json from package
-    pkg_config = Path(__file__).parent.parent / "config.example.json"
-    
     if config_path.exists():
-        console.print(f"[yellow]Config already exists at {config_path}[/yellow]")
-        console.print("  [bold]y[/bold] = overwrite with defaults (existing values will be lost)")
-        console.print("  [bold]N[/bold] = refresh config (keep existing)")
-        if typer.confirm("Overwrite?"):
-            if pkg_config.exists():
-                shutil.copy2(pkg_config, config_path)
-            else:
-                save_config(Config())
-            console.print(f"[green]✓[/green] Config reset to defaults at {config_path}")
-        else:
-            # Refresh currently just loads and saves back to normalize structure
-            config = load_config()
-            save_config(config)
-            console.print(f"[green]✓[/green] Config refreshed at {config_path}")
-    else:
-        if pkg_config.exists():
-            config_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(pkg_config, config_path)
-        else:
-            save_config(Config())
-        console.print(f"[green]✓[/green] Created config at {config_path}")
-    
-    # 2. Workspace initialization
-    workspace = get_workspace_path()
-    
-    if not workspace.exists():
-        workspace.mkdir(parents=True, exist_ok=True)
-        console.print(f"[green]✓[/green] Created workspace at {workspace}")
-    
-    # Copy all files from nanobot/workspace/ template to usage workspace
-    _copy_workspace_templates(workspace)
-    
-    console.print(f"\n{__logo__} nanobot is ready!")
-    console.print("\nNext steps:")
-    console.print("  1. Add your API key to [cyan]~/.nanobot/config.json[/cyan]")
-    console.print("     Get one at: https://openrouter.ai/keys")
-    console.print("  2. Chat: [cyan]nanobot agent -m \"Hello!\"[/cyan]")
-
-
-def _copy_workspace_templates(target_dir: Path):
-    """Recursively copy template files from nanobot/workspace to target."""
-    import shutil
-    
-    # Source directory: nanobot/workspace/ inside the package
-    source_dir = Path(__file__).parent.parent / "workspace"
-    
-    if not source_dir.exists():
-        console.print(f"[yellow]Warning: Template directory not found at {source_dir}[/yellow]")
         return
 
-    console.print("  [dim]Copying templates...[/dim]")
+    # If we are here, no config was found.
+    # We should auto-initialize the GLOBAL config (~/.nanobot)
+    # But only if we are NOT in a project directory that just lacks config
+    # (though get_config_path handles priority, so if it returns non-existent, it means nothing found)
     
-    # Walk through the source directory
-    for src_path in source_dir.rglob("*"):
-        if src_path.is_dir():
-            continue
-            
-        # Calculate relative path to maintain structure
-        rel_path = src_path.relative_to(source_dir)
-        dest_path = target_dir / rel_path
-        
-        # Create parent directories if needed
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Don't overwrite existing files (user data)
-        if not dest_path.exists():
-            try:
-                shutil.copy2(src_path, dest_path)
-                console.print(f"  [dim]Created {rel_path}[/dim]")
-            except Exception as e:
-                console.print(f"[red]Failed to copy {rel_path}: {e}[/red]")
-        else:
-            # Optional: could check MD5 to see if different, but for now safe default is skip
-            pass
-
-
-
+    global_root = Path.home() / ".nanobot"
+    console.print(f"[dim]No configuration found. Auto-initializing global settings at {global_root}...[/dim]")
+    initialize_nanobot(global_root)
 
 
 # ============================================================================
@@ -258,6 +204,8 @@ def gateway(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Start the nanobot gateway."""
+    _ensure_global_init()
+    
     from nanobot.config.loader import load_config, get_data_dir
     from nanobot.bus.queue import MessageBus
     from nanobot.agent.loop import AgentLoop
@@ -389,6 +337,8 @@ def agent(
     logs: bool = typer.Option(False, "--logs/--no-logs", help="Show nanobot runtime logs during chat"),
 ):
     """Interact with the agent directly."""
+    _ensure_global_init()
+    
     from nanobot.config.loader import load_config
     from nanobot.bus.queue import MessageBus
     from nanobot.agent.loop import AgentLoop
@@ -735,6 +685,8 @@ def cron_run(
 @app.command()
 def status():
     """Show nanobot status."""
+    _ensure_global_init()
+    
     from nanobot.config.loader import load_config, get_config_path
 
     config_path = get_config_path()

@@ -8,10 +8,26 @@ from nanobot.config.schema import Config
 
 
 def get_config_path() -> Path:
-    """Get the default configuration file path."""
+    """
+    Get the default configuration file path.
+    
+    Priority:
+    1. NANOBOT_CONFIG_PATH environment variable
+    2. Local project config (.nanobot/config.json in current dir)
+    3. Global config (~/.nanobot/config.json)
+    """
     import os
+    
+    # 1. Environment variable
     if env_path := os.environ.get("NANOBOT_CONFIG_PATH"):
         return Path(env_path)
+        
+    # 2. Local project config
+    local_config = Path.cwd() / ".nanobot" / "config.json"
+    if local_config.exists():
+        return local_config
+        
+    # 3. Global config
     return Path.home() / ".nanobot" / "config.json"
 
 
