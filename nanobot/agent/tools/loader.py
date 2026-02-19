@@ -11,16 +11,27 @@ from loguru import logger
 from nanobot.agent.tools.base import Tool
 
 
-def load_tools(tool_paths: List[str]) -> List[Tool]:
+def load_tools(tool_paths: List[str], workspace_path: Path | None = None) -> List[Tool]:
     """
     Load tool classes from dot-notation paths.
     
     Args:
         tool_paths: List of strings like "my_module.MyTool"
+        workspace_path: Optional path to agent workspace. 
+                       If provided, adds {workspace}/tools to sys.path.
         
     Returns:
         List of instantiated Tool objects.
     """
+    import sys
+    
+    # Add workspace/tools to sys.path if available
+    if workspace_path:
+        tools_dir = workspace_path / "tools"
+        if tools_dir.exists() and str(tools_dir) not in sys.path:
+            logger.debug(f"Adding {tools_dir} to sys.path for custom tools")
+            sys.path.insert(0, str(tools_dir))
+
     tools: List[Tool] = []
     
     for path in tool_paths:

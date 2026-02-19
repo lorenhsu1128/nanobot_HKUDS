@@ -137,7 +137,7 @@ class AgentLoop:
         # Custom tools
         if self.custom_tools_config:
             from nanobot.agent.tools.loader import load_tools
-            custom_tools = load_tools(self.custom_tools_config)
+            custom_tools = load_tools(self.custom_tools_config, self.workspace)
             for tool in custom_tools:
                 self.tools.register(tool)
     
