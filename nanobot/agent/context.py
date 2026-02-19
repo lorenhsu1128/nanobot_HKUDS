@@ -91,9 +91,10 @@ class ContextBuilder:
         self.skills = SkillsLoader(workspace)
         
         # Load centralized prompts
-        # Load centralized prompts from CONTEXT.md (now in nanobot root)
-        # context.py is in nanobot/agent/, so we need nanobot/CONTEXT.md
-        context_md_path = Path(__file__).parent.parent / "CONTEXT.md"
+        # Load centralized prompts from CONTEXT.md in workspace
+        context_md_path = self.workspace / "CONTEXT.md"
+        if not context_md_path.exists():
+            raise FileNotFoundError(f"Critical context file missing: {context_md_path}")
         self.prompts = PromptLoader(context_md_path)
     
     def build_system_prompt(self, skill_names: list[str] | None = None) -> str:

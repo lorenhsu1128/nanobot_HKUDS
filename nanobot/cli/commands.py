@@ -159,34 +159,46 @@ def onboard():
     from nanobot.config.loader import get_config_path, load_config, save_config
     from nanobot.config.schema import Config
     from nanobot.utils.helpers import get_workspace_path
+    import shutil
     
     config_path = get_config_path()
+    
+    # 1. Config initialization
+    # Source config.example.json from package
+    pkg_config = Path(__file__).parent.parent / "config.example.json"
     
     if config_path.exists():
         console.print(f"[yellow]Config already exists at {config_path}[/yellow]")
         console.print("  [bold]y[/bold] = overwrite with defaults (existing values will be lost)")
-        console.print("  [bold]N[/bold] = refresh config, keeping existing values and adding new fields")
+        console.print("  [bold]N[/bold] = refresh config (keep existing)")
         if typer.confirm("Overwrite?"):
-            config = Config()
-            save_config(config)
+            if pkg_config.exists():
+                shutil.copy2(pkg_config, config_path)
+            else:
+                save_config(Config())
             console.print(f"[green]✓[/green] Config reset to defaults at {config_path}")
         else:
+            # Refresh currently just loads and saves back to normalize structure
             config = load_config()
             save_config(config)
-            console.print(f"[green]✓[/green] Config refreshed at {config_path} (existing values preserved)")
+            console.print(f"[green]✓[/green] Config refreshed at {config_path}")
     else:
-        save_config(Config())
+        if pkg_config.exists():
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(pkg_config, config_path)
+        else:
+            save_config(Config())
         console.print(f"[green]✓[/green] Created config at {config_path}")
     
-    # Create workspace
+    # 2. Workspace initialization
     workspace = get_workspace_path()
     
     if not workspace.exists():
         workspace.mkdir(parents=True, exist_ok=True)
         console.print(f"[green]✓[/green] Created workspace at {workspace}")
     
-    # Create default bootstrap files
-    _create_workspace_templates(workspace)
+    # Copy all files from nanobot/workspace/ template to usage workspace
+    _copy_workspace_templates(workspace)
     
     console.print(f"\n{__logo__} nanobot is ready!")
     console.print("\nNext steps:")
@@ -195,44 +207,41 @@ def onboard():
     console.print("  2. Chat: [cyan]nanobot agent -m \"Hello!\"[/cyan]")
 
 
-
-
-def _create_workspace_templates(workspace: Path):
-    """Create default workspace template files."""
-    from nanobot.agent.context import PromptLoader
-    # commands.py is in nanobot/cli/, so we go up to nanobot/CONTEXT.md
-    context_md_path = Path(__file__).parent.parent / "CONTEXT.md"
-    prompts = PromptLoader(context_md_path)
-
-    templates = {
-        "AGENTS.md": prompts.get("Template: AGENTS.md"),
-        "SOUL.md": prompts.get("Template: SOUL.md"),
-        "USER.md": prompts.get("Template: USER.md"),
-    }
+def _copy_workspace_templates(target_dir: Path):
+    """Recursively copy template files from nanobot/workspace to target."""
+    import shutil
     
-    for filename, content in templates.items():
-        file_path = workspace / filename
-        if not file_path.exists():
-            file_path.write_text(content, encoding="utf-8")
-            console.print(f"  [dim]Created {filename}[/dim]")
+    # Source directory: nanobot/workspace/ inside the package
+    source_dir = Path(__file__).parent.parent / "workspace"
     
-    # Create memory directory and MEMORY.md
-    memory_dir = workspace / "memory"
-    memory_dir.mkdir(exist_ok=True)
-    memory_file = memory_dir / "MEMORY.md"
-    if not memory_file.exists():
-        memory_content = prompts.get("Template: MEMORY.md")
-        memory_file.write_text(memory_content, encoding="utf-8")
-        console.print("  [dim]Created memory/MEMORY.md[/dim]")
-    
-    history_file = memory_dir / "HISTORY.md"
-    if not history_file.exists():
-        history_file.write_text("")
-        console.print("  [dim]Created memory/HISTORY.md[/dim]")
+    if not source_dir.exists():
+        console.print(f"[yellow]Warning: Template directory not found at {source_dir}[/yellow]")
+        return
 
-    # Create skills directory for custom user skills
-    skills_dir = workspace / "skills"
-    skills_dir.mkdir(exist_ok=True)
+    console.print("  [dim]Copying templates...[/dim]")
+    
+    # Walk through the source directory
+    for src_path in source_dir.rglob("*"):
+        if src_path.is_dir():
+            continue
+            
+        # Calculate relative path to maintain structure
+        rel_path = src_path.relative_to(source_dir)
+        dest_path = target_dir / rel_path
+        
+        # Create parent directories if needed
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Don't overwrite existing files (user data)
+        if not dest_path.exists():
+            try:
+                shutil.copy2(src_path, dest_path)
+                console.print(f"  [dim]Created {rel_path}[/dim]")
+            except Exception as e:
+                console.print(f"[red]Failed to copy {rel_path}: {e}[/red]")
+        else:
+            # Optional: could check MD5 to see if different, but for now safe default is skip
+            pass
 
 
 
