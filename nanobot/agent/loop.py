@@ -165,6 +165,85 @@ class AgentLoop:
             if isinstance(cron_tool, CronTool):
                 cron_tool.set_context(channel, chat_id)
 
+    def _try_parse_tool_calls(self, content: str) -> list[dict[str, Any]]:
+        """
+        Attempt to parse tool calls from text content (e.g., exec(...)).
+        
+        This handles cases where the LLM puts the tool call in the content body 
+        instead of the structured tool_calls field.
+        """
+        import ast
+        import uuid
+        
+        tool_calls = []
+        # Get list of known tools to search for
+        # registry.py has .tool_names property, but let's check if we can access it
+        # self.tools is ToolRegistry
+        if hasattr(self.tools, "tool_names"):
+            known_tools = self.tools.tool_names
+        else:
+            # Fallback if property doesn't exist (though it should based on file view)
+            known_tools = [t["function"]["name"] for t in self.tools.get_definitions()]
+
+        # Scan for potential tool calls: name(
+        for tool_name in known_tools:
+            search_str = f"{tool_name}("
+            start_idx = 0
+            while True:
+                idx = content.find(search_str, start_idx)
+                if idx == -1:
+                    break
+                
+                # Try to parse progressively larger chunks until we find a valid call
+                # or hit the end. Heuristic: match parentheses.
+                open_count = 0
+                end_idx = -1
+                for i, char in enumerate(content[idx:]):
+                    if char == '(':
+                        open_count += 1
+                    elif char == ')':
+                        open_count -= 1
+                        if open_count == 0:
+                            end_idx = idx + i + 1
+                            break
+                
+                if end_idx != -1:
+                    potential_call = content[idx:end_idx]
+                    try:
+                        # Parse as an expression
+                        tree = ast.parse(potential_call, mode='eval')
+                        if isinstance(tree.body, ast.Call) and \
+                           isinstance(tree.body.func, ast.Name) and \
+                           tree.body.func.id == tool_name:
+                            
+                            # Valid function call structure. Extract arguments.
+                            args = {}
+                            
+                            # Handle keyword args
+                            for keyword in tree.body.keywords:
+                                # Safe evaluation of literals
+                                args[keyword.arg] = ast.literal_eval(keyword.value)
+                            
+                            # Handle positional args if any (map to keys if possible?)
+                            # Our tools generally use keyword args. If pos args exist, we might skip or try to map.
+                            # For now, only support kwargs as that's what LLMs produce for tools.
+                            if not tree.body.args:
+                                tool_calls.append({
+                                    "id": f"call_{uuid.uuid4().hex[:8]}",
+                                    "type": "function",
+                                    "function": {
+                                        "name": tool_name,
+                                        "arguments": args
+                                    }
+                                })
+                    except Exception:
+                        # Parse error or literal_eval error -> not a valid tool call
+                        pass
+                
+                start_idx = idx + 1
+        
+        return tool_calls
+
     async def _run_agent_loop(self, initial_messages: list[dict]) -> tuple[str | None, list[str]]:
         """
         Run the agent iteration loop.
@@ -191,6 +270,9 @@ class AgentLoop:
                 max_tokens=self.max_tokens,
             )
 
+            tool_call_dicts = []
+            
+            # 1. Standard tool calls
             if response.has_tool_calls:
                 tool_call_dicts = [
                     {
@@ -203,19 +285,56 @@ class AgentLoop:
                     }
                     for tc in response.tool_calls
                 ]
+            
+            # 2. Fallback: Parse from content if no standard calls (or even if there are?)
+            # Usually if there are standard calls, we trust them. If not, check content.
+            # But sometimes model duplicates? Let's check only if tool_calls is empty OR content looks suspicious.
+            # Safety: only if empty for now preventing double execution?
+            # User issue implies structured output was missing.
+            elif response.content:
+                parsed_calls = self._try_parse_tool_calls(response.content)
+                if parsed_calls:
+                    logger.info(f"Parsed {len(parsed_calls)} tool calls from content body.")
+                    tool_call_dicts = [
+                        {
+                            "id": tc["id"],
+                            "type": "function",
+                            "function": {
+                                "name": tc["function"]["name"],
+                                "arguments": json.dumps(tc["function"]["arguments"])
+                            }
+                        }
+                        for tc in parsed_calls
+                    ]
+                    # If we successfully parsed tools, we might want to treat content as "thought"
+                    # or keep it. Standard behavior is to keep it.
+
+            if tool_call_dicts:
+                # Add assistant message with tool calls
                 messages = self.context.add_assistant_message(
                     messages, response.content, tool_call_dicts,
                     reasoning_content=response.reasoning_content,
                 )
 
-                for tool_call in response.tool_calls:
-                    tools_used.append(tool_call.name)
-                    args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
-                    logger.info(f"Tool call: {tool_call.name}({args_str[:200]})")
-                    result = await self.tools.execute(tool_call.name, tool_call.arguments)
+                # Process all tool calls (standard + parsed)
+                # We need to reconstruct "response.tool_calls" structure for the loop
+                # transforming our dicts back to objects or just iterating our list
+                
+                for tc_dict in tool_call_dicts:
+                    func = tc_dict["function"]
+                    name = func["name"]
+                    args = json.loads(func["arguments"])
+                    tool_id = tc_dict["id"]
+                    
+                    tools_used.append(name)
+                    args_str = json.dumps(args, ensure_ascii=False)
+                    logger.info(f"Tool call: {name}({args_str[:200]})")
+                    
+                    result = await self.tools.execute(name, args)
                     messages = self.context.add_tool_result(
-                        messages, tool_call.id, tool_call.name, result
+                        messages, tool_id, name, result
                     )
+                
                 messages.append({"role": "user", "content": "Reflect on the results and decide next steps."})
             else:
                 final_content = response.content
